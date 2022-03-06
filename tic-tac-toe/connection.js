@@ -6,12 +6,15 @@ class Connection extends Actor {
     constructor (channels) {
         super(channels.in, channels.out)
         this.#peer = new Peer("", {
+            config: {
                 'iceServers' : [
                     { 'urls': 'turn:93.19.49.53:3478', 'username': 'nikita', 'credential' : 'nikiniki' },
                     { 'urls': 'stun:stun.l.google.com:19302' }                    
                 ], 
                 'sdpSemantics': 'unified-plan'
-            })
+            },
+            debug: 3
+        })
         super.registerMessageHandler("CONNECT_REMOTE_PEER", this.connectToRemotePeer)
         super.registerMessageHandler("REMOTE_PEER_DATA", this.sendData)
     }
