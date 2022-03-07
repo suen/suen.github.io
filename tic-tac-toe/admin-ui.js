@@ -1,10 +1,18 @@
+function getRemotePeerId() {
+    return localStorage.getItem("remotePeerId") || ""
+}
+
+function setRemotePeerId(id) {
+    localStorage.setItem("remotePeerId", id)
+}
+
 class AdminUI extends Actor {
     #uiNetworkInfo;
     #uiRemotePeerStatus;
     #uiRemotePeerConnect;
     #uiRemotePeerId;
     #uiRemoteConnectBtn;
-    #uiGameInitBtn;
+    #uiNewGameBtn;
     #awaitingAck = false;
 
     constructor(address) {
@@ -14,7 +22,7 @@ class AdminUI extends Actor {
         this.#uiRemotePeerConnect = document.getElementById("remote-peer-connect");
         this.#uiRemotePeerId = document.getElementById("remote-peer-id");
         this.#uiRemoteConnectBtn = document.getElementById("remote-connect-btn");
-        this.#uiGameInitBtn = document.getElementById("game-init-button");
+        this.#uiNewGameBtn = document.getElementById("game-init-button");
         this.init();
     }
 
@@ -22,10 +30,10 @@ class AdminUI extends Actor {
         this.#uiNetworkInfo.innerText = "Registering ..."
         this.#hide(this.#uiRemotePeerStatus);
         this.#hide(this.#uiRemotePeerConnect);
-        this.#hide(this.#uiGameInitBtn);
+        this.#hide(this.#uiNewGameBtn);
         this.#uiRemotePeerId.value = "";
 
-        this.#uiGameInitBtn.onclick = this.#onGameStartClick.bind(this)
+        this.#uiNewGameBtn.onclick = this.#onGameStartClick.bind(this)
         this.#uiRemoteConnectBtn.onclick = this.#onRemoteConnectClick.bind(this)
     }
 
@@ -60,20 +68,28 @@ class AdminUI extends Actor {
         if (msg.type  === "PEER_REGISTERED") {
             this.onRegistered(msg.id);
         }
-        if (msg.type === "REMOTE_PEER_CONNECTED") {
+        else if (msg.type === "REMOTE_PEER_CONNECTED") {
             this.onRemotePeerConnected(msg.remotePeerId);
         }
-        if (msg.type === "REMOTE_PEER_DISCONNECTED") {
+        else if (msg.type === "REMOTE_PEER_DISCONNECTED") {
             this.onRemotePeerDisconnected(msg.remotePeerId);
         }
-        if (msg.type === "REMOTE_PEER_ERROR") {
+        else if (msg.type === "REMOTE_PEER_ERROR") {
             this.onRemoteConnectionError(msg.remotePeerId);
         }
+        else if (msg.type === "REMOTE_PEER_DATA" && msg.content.type === "GAME_STATE") {
+            this.onGameState(msg.content);
+        }
+    }
+
+    onGameState(msg) {
+        this.#uiNewGameBtn.disabled = (msg.result === undefined)
     }
 
     onRegistered(id) {
         this.#uiNetworkInfo.innerText = "Your id is : " + id;
         this.#unHide(this.#uiRemotePeerConnect);
+        this.#uiRemotePeerId.value = getRemotePeerId();
     }
 
     #ackReceived() {
@@ -86,10 +102,11 @@ class AdminUI extends Actor {
         this.#hide(this.#uiRemotePeerConnect);
         this.#ackReceived();
         this.#activateGame();
+        setRemotePeerId(id);
     }
 
     #activateGame() {
-        this.#unHide(this.#uiGameInitBtn)
+        this.#unHide(this.#uiNewGameBtn)
     }
 
     onRemotePeerDisconnected(id) {

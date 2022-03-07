@@ -4,6 +4,7 @@ class Board extends Actor {
     #playerSymbols = []
     #peerPrefix = ""
     #boardContainer
+    #boardPlayer
 
     constructor(peerPrefix, factor, address) {
         super(address.in, address.out)
@@ -19,6 +20,7 @@ class Board extends Actor {
 
     createMarkup(factor) {
         const table = document.getElementById(this.#peerPrefix+"-grid");
+        table.innerHTML = ""
         let count = 1;
         for (let i = 0; i < factor; i++) {
             const tr = document.createElement("tr");
@@ -70,11 +72,17 @@ class Board extends Actor {
     fillStatus(status) {
         document.getElementById(this.#peerPrefix+"-status").innerHTML = "<h2>" + status + "</h2>";
     }
+
+    setBoardPlayer(player) {
+        this.#boardPlayer = player;
+    }
     
     fillScore(score, msg) {
         let scoreMsg = ""
         for(let player in score) {
-            scoreMsg += "<h3>" + player + " = " + score[player] + "</h3>"; 
+            const you = (player === this.#boardPlayer) ? " (You) " : " "
+
+            scoreMsg += "<h3>" + player + you+ "= " + score[player] + "</h3>"; 
         }
         scoreMsg += msg === undefined ? "" : "<h3>" + msg + "</h3>";
         this.fillInfo(scoreMsg);

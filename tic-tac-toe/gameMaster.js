@@ -17,11 +17,11 @@ function printer(ads, m) {
 class GameMaster extends Actor {
     #actors = []
     #address = {}
-    #id;
-    #protocolInProgress = false;
     #gameParam;
     #writeChannelRemoteIn;
-    #readChannelRemoteOut;
+    #gameState = "";
+    #timeout;
+    #id = 100
 
     constructor(address) {
         super(address.in, address.out)
@@ -30,10 +30,13 @@ class GameMaster extends Actor {
         this.registerMessageHandler("ACCEPT_NEW_GAME", this.onAcceptNewGame)
         this.registerMessageHandler("START_GAME", this.onGameStart)
         this.registerMessageHandler("GAME_START_OK", this.onGameStartOk)
+  
 
         this.registerMessageHandler("REMOTE_PEER_DATA", this.onRemoteData)
 
         this.registerMessageHandler("GAME_STATE", this.onRemoteGameState)
+
+        this.registerMessageHandler("GAME_OVER", this.endGame)
     }
 
     remoteOutbox(msg) {
@@ -49,11 +52,16 @@ class GameMaster extends Actor {
         this.onMessage(content);
     }
 
-    onGameHostStart(msg) {
-        if (this.#protocolInProgress) {
-            this.log("onGameHostStart: Already accepted invitation/waiting invitation response", 3)
-            return;
+
+    checkGameState(msg, state) {
+        if (this.#gameState !== state) {
+            throw new Error(`Not expecting ${msg.type} when game is in state '${this.#gameState}'`);
         }
+    }
+
+    onGameHostStart(msg) {
+        console.log("onGameHostStart")
+        this.checkGameState(msg, "")
         const gameParam = {
             scale: 9,
             players: {
@@ -62,34 +70,32 @@ class GameMaster extends Actor {
                     type: "Human"
                 },
                 2: {
-                    symbol: "y",
-                    type: "AI"
-                },
-                3: {
                     symbol: "o",
                     type: "AI"
                 },
-                4: {
+                3: {
                     symbol: "+",
                     type: "Human"
+                },
+                4: {
+                    symbol: "u",
+                    type: "AI"
                 }
             },
             me: 1,
-            you: 4,
+            you: 3,
         }
         const hostMsg = Object.assign({type: "NEW_GAME"}, gameParam)
         this.remoteOutbox(hostMsg);
         console.log("Proposing a new game ")
-        this.#protocolInProgress = true;
+        this.#gameState = "INIT"
     }
 
     onNewGameInvitation(msg) {
-        if (this.#protocolInProgress) {
-            this.log("onNewGameInvitation : Already accepted invitation/waiting invitation response", 3)
-            return;
-        }
+        this.checkGameState(msg, "")
+
         const gamePlayers = {}
-        
+       
         const me = msg.you;
 
         for (let p in msg.players) {
@@ -114,10 +120,12 @@ class GameMaster extends Actor {
 
         this.remoteOutbox(ackParam)
         console.log("Accepting game with ", this.#gameParam)
-        this.#protocolInProgress = true;
+        this.#gameState = "INIT"
     }
 
     onAcceptNewGame(msg) {
+        this.checkGameState(msg, "INIT")        
+
         const me = msg.you 
         const remote = msg.me;
         
@@ -137,19 +145,24 @@ class GameMaster extends Actor {
         }        
         console.log("Starting game with ", this.#gameParam)
         this.remoteOutbox({type: "START_GAME"})
+        this.#gameState = "WAIT_START_GAME"
     }
 
-    onGameStart() {
+    onGameStart(msg) {
+        this.checkGameState(msg, "INIT")        
         this.remoteOutbox({type: "GAME_START_OK"})
-        this.init("2", this.#gameParam.scale, this.#gameParam.players, "peer1")
+        this.#id++
+        this.init(this.#id, this.#gameParam.scale, this.#gameParam.players, "peer1")
         
         
         console.log("Starting new game with ", this.#gameParam)
         this.start()
     }
 
-    onGameStartOk() {
-        this.init("1", this.#gameParam.scale, this.#gameParam.players, "peer1")
+    onGameStartOk(msg) {
+        this.checkGameState(msg, "WAIT_START_GAME")
+        this.#id++
+        this.init(this.#id, this.#gameParam.scale, this.#gameParam.players, "peer1")
         this.start()
     }
 
@@ -158,8 +171,6 @@ class GameMaster extends Actor {
     }
 
     init(id, factor, players, domPrefix) {
-        this.#id = id;
-
         const addr = {
             gameIn : "game-in-" + id,
             gameOut : "game-out-" + id,
@@ -201,6 +212,7 @@ class GameMaster extends Actor {
                     return new RandomPlayer(symbol, {in: readChannelGameOut, out: writeChannelGameIn});
                 }
                 else if (type === "Board") {
+                    board.setBoardPlayer(symbol)
                     return new BoardPlayer(symbol, {in: readChannelGameOut, out: writeChannelGameIn, boardIn: readChannelBoardIn});
                 }
                 else if (type === "Remote") {
@@ -213,11 +225,31 @@ class GameMaster extends Actor {
         this.#writeChannelRemoteIn = writeChannel(this.#id, this.#address.remoteIn);
         
         readChannel(this.#id, this.#address.remoteOut)(msg => this.remoteOutbox(msg));
+        readChannelGameOut(msg => this.setGameStatus.bind(this)(msg))
     }
 
     start() {
         writeChannel(this.#id, this.#address.gameIn)({type: "GET_STATE"});
         this.runGame();
+        this.#gameState = "IN_PROGRESS"
+    }
+
+    endGame() {
+        this.#gameState = "";
+    }
+
+    runGame() {
+        this.#actors.forEach(actor => actor.onTick())
+        this.#timeout = setTimeout(this.runGame.bind(this), 1);
+    }
+
+    setGameStatus(msg) {
+        if (msg.type !== "GAME_STATE"){
+            return;
+        }
+        if (msg.result) {
+            this.onIncoming({type: "GAME_OVER"})
+        }
     }
 
     getWriterChannelRemoteIn() {
@@ -243,8 +275,4 @@ class GameMaster extends Actor {
         this.#actors.push(actor);
     }
 
-    runGame() {
-        this.#actors.forEach(actor => actor.onTick())
-        setTimeout(this.runGame.bind(this), 1);
-    }
 }

@@ -1,12 +1,14 @@
 class EventBus {
 
+    #id;
     #topicConsumer = {};
     #eventQueue = []
 
     static instances = {};
 
-    constructor() {
+    constructor(id) {
         this.onTick();
+        this.#id = id;
     }
 
     static readChannel(id, name) {
@@ -28,7 +30,7 @@ class EventBus {
     static get(keyParam) {
         const key = keyParam || "default";
        
-        EventBus.instances[key] = EventBus.instances[key] || new EventBus();
+        EventBus.instances[key] = EventBus.instances[key] || new EventBus(key);
         return EventBus.instances[key];
     }
 
@@ -44,6 +46,12 @@ class EventBus {
     #registerChannel(channel, consumer) {
         this.#topicConsumer[channel] = this.#topicConsumer[channel] || []
         this.#topicConsumer[channel].push(consumer)
+    }
+
+    dispose() {
+        this.#topicConsumer = {}
+        this.#eventQueue = []
+        EventBus.instances[this.#id] = undefined;
     }
 
     #unregisterChannel(topic, consumer) {

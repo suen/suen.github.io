@@ -1,3 +1,11 @@
+function getPeerId() {
+    return localStorage.getItem("peerId") || ""
+}
+
+function setPeerId(id) {
+    localStorage.setItem("peerId", id)
+}
+
 class Connection extends Actor {
 
     #peer;
@@ -5,7 +13,7 @@ class Connection extends Actor {
 
     constructor (channels) {
         super(channels.in, channels.out)
-        this.#peer = new Peer("", {
+        this.#peer = new Peer(getPeerId(), {
             config: {
                 'iceServers' : [
                     { 'urls': 'turn:93.19.49.53:3478', 'username': 'nikita', 'credential' : 'nikiniki' },
@@ -22,6 +30,7 @@ class Connection extends Actor {
     register() {
         this.#peer.on('open', (id => {
             console.log("My id is : ", id);
+            setPeerId(id);
             this.outbox({type: "PEER_REGISTERED", id: id})
         }).bind(this))
         this.#peer.on("connection", this.onRemoteConnection.bind(this))        

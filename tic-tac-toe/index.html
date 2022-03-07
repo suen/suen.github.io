@@ -32,7 +32,7 @@
                     <button id="remote-connect-btn" class="btn btn-primary">Connect</button>
                 </h5>
                 <h5>
-                    <button id="game-init-button" class="btn btn-primary">Start</button>
+                    <button id="game-init-button" class="btn btn-primary">New Game</button>
                 </h5>
             </div>
             <div class="col-12">
@@ -101,7 +101,7 @@
 <script>
 
 
-const adminUI = new AdminUI({in: EventBus.readChannel("1", "conn-out"), out: EventBus.writeChannel("1", "admin-out")});
+const adminUI = new AdminUI({in: EventBus.readChannel("1", ["conn-out", "conn-in"]), out: EventBus.writeChannel("1", "admin-out")});
 adminUI.run();
 
 const connection = new Connection({in: EventBus.readChannel("1", ["conn-in", "admin-out"]), out: EventBus.writeChannel("1", "conn-out")})

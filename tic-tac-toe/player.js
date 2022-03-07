@@ -46,7 +46,8 @@ class Player extends Actor {
 class RandomPlayer extends Player {
     #waitingAck = false;
     #lastMove = -1
-
+    #processing = false
+    
     constructor(symbol, address) {
         super(symbol, address)
     }
@@ -74,13 +75,23 @@ class RandomPlayer extends Player {
             return;
         }
 
-        const currentState = msg.currentState;
-        const move = this.randomMove(currentState);
-        const playerMoveMsg = {type: "PLAYER_MOVE", player: this.getSymbol(), move: move};
-        
-        this.#waitingAck = true;
-        this.#lastMove = move;
-        this.outbox(playerMoveMsg);
+        if (this.#processing) {
+            return;
+        }
+
+        const randomAction = () => {
+            const currentState = msg.currentState;
+            const move = this.randomMove(currentState);
+            const playerMoveMsg = {type: "PLAYER_MOVE", player: this.getSymbol(), move: move};
+            
+            this.#waitingAck = true;
+            this.#lastMove = move;
+            this.outbox(playerMoveMsg);
+            this.#processing = false
+        }
+
+        setTimeout(randomAction, 1000);
+        this.#processing = true
     }
 
     randomMove(state) {
