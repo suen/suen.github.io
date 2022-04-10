@@ -37,6 +37,8 @@ class GameMaster extends Actor {
         this.registerMessageHandler("GAME_STATE", this.onRemoteGameState)
 
         this.registerMessageHandler("GAME_OVER", this.endGame)
+
+        this.registerMessageHandler("LOCAL_GAME_START", this.onLocalGameStart)
     }
 
     remoteOutbox(msg) {
@@ -168,6 +170,11 @@ class GameMaster extends Actor {
 
     onRemoteGameState(msg) {
         this.#writeChannelRemoteIn(msg)
+    }
+
+    onLocalGameStart(msg) {
+        this.init("1", msg.gameParam.scale, msg.gameParam.players, "peer1");
+        this.start();
     }
 
     init(id, factor, players, domPrefix) {

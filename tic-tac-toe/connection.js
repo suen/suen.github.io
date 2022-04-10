@@ -16,8 +16,7 @@ class Connection extends Actor {
         this.#peer = new Peer(getPeerId(), {
             config: {
                 'iceServers' : [
-                    { 'urls': 'turn:93.19.49.53:3478', 'username': 'nikita', 'credential' : 'nikiniki' },
-                    { 'urls': 'stun:stun.l.google.com:19302' }                    
+                    { 'urls': 'turn:turn.daubajee.com:3478', 'username': 'daubajee', 'credential' : 'khaukhau' }
                 ], 
                 'sdpSemantics': 'unified-plan'
             },
